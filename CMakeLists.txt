@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # so that the dynamic test libs can be created
-set(CMAKE_CXX_FLAGS -fPIC)
+set(CMAKE_CXX_FLAGS "-fPIC -fsanitize=address")
 
 #Comment out for debugging compile problems
 #set(CMAKE_VERBOSE_MAKEFILE ON)
