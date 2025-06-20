@@ -290,6 +290,26 @@ public:
         FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
     }
 
+    static void AreEqual(int expected, long actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
+    {
+        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+    }
+
+    static void AreEqual(long expected, int actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
+    {
+        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+    }        
+
+    static void AreEqual(unsigned int expected, unsigned long actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
+    {
+        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+    }
+
+    static void AreEqual(unsigned long expected, unsigned int actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
+    {
+        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+    }        
+
     static void AreEqual(double expected, double actual, double tolerance, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
         double diff = expected - actual;
@@ -396,7 +416,7 @@ public:
 
     template<typename T> static void IsNotNull(const T* actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(!actual, message, location);
+        FailOnCondition(actual != nullptr, message, location);
     }
     
     static void IsTrue(bool condition, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
