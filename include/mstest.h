@@ -101,6 +101,9 @@ namespace MyTest
   };
 }
 
+#define TEST_MODULE_INITIALIZE(mname)   void mname(); extern "C" CPPT_ISVISIBLE void _Test_Init_Module()    { mname(); } void mname()
+#define TEST_MODULE_CLEANUP(mname)      void mname(); extern "C" CPPT_ISVISIBLE void _Test_Cleanup_Module() { mname(); } void mname()
+
 #define TEST_CLASS(name) class CPPT_ISVISIBLE name : public MyTest::TestClass<name>
 
 #define BEGIN_TEST_CLASS_ATTRIBUTE()

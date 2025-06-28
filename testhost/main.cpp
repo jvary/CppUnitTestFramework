@@ -56,6 +56,8 @@ struct LocalCounter
   int ignored = 0;    
 };
 
+void* testeeDlHandle = nullptr;
+
 // --------------------------------------------------------------------------
 //   forwards
 // --------------------------------------------------------------------------
@@ -67,12 +69,18 @@ void ProcessMethod( const std::string &rMethodInfoName
                   , std::vector<std::pair<std::string, AssertX::AssertFailed>>& rFailedTests
                   , LocalCounter& rLocalCounters
                   );
+void TryRunCFunction(const std::string& functionName, const std::string& prettyName);
 
 // --------------------------------------------------------------------------
 inline bool endsWith(const std::string& value, const std::string& ending)
 {
     if (ending.size() > value.size()) return false;
     return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+// --------------------------------------------------------------------------
+inline bool containsString(const std::vector<std::string>& vec, const std::string& value) {
+    return std::find(vec.begin(), vec.end(), value) != vec.end();
 }
 
 // --------------------------------------------------------------------------
@@ -146,9 +154,20 @@ int main(int argc, char* argv[])
       return -1;
     }
 
+    testeeDlHandle = dlopen(testSo.c_str(), RTLD_LAZY);
+    if (!testeeDlHandle) {
+        std::cerr << "dlopen failed: " << dlerror() << std::endl;
+        return -1;
+    }
+    dlerror(); 
+
+    TryRunCFunction("_Test_Init_Module", "module init");
+
     for (auto sym : testfunctions) {
         ProcessMethod(sym, testfunctionsAttributes, allTests, failedTests, olocalCounters);
     }
+
+    TryRunCFunction("_Test_Cleanup_Module", "module cleanup");
 
     if (failedTests.size() > 0)
     {
@@ -327,4 +346,25 @@ int parseArgs(int argc, char* argv[])
         std::cout  << "Trx sink is : " << testTrx << std::endl;
 
     return 0;
+}
+
+// --------------------------------------------------------------------------
+void TryRunCFunction(const std::string& functionName, const std::string& prettyName)
+{
+    // C functions are not mangled, so use the name directly
+    typedef void (*CFunc)();
+    CFunc fnc = reinterpret_cast<CFunc>(dlsym(testeeDlHandle, functionName.c_str()));
+    if (!fnc)
+    {
+        std::cout << "No " << prettyName << " found" << std::endl;
+        return;
+    }
+
+    try {
+        fnc();
+    } catch (const std::exception& ex) {
+        std::cerr << "Exception at " << ex.what() << " for " << functionName << std::endl;
+    } catch (...) {
+        std::cerr << "Unknown exception for " << functionName << std::endl;
+    }
 }
