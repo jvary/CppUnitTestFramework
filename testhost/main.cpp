@@ -198,7 +198,7 @@ int main(int argc, char* argv[])
   {
     std::cerr << "No tests found in " << testSo << std::endl;
     TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
-    return -1;
+    return filter.empty() ? -1 : 0;
   }  
 
   return 0;
