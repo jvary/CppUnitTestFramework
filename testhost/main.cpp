@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
     } 
     else 
     {
-      std::cout << "All tests passed.";
+      std::cout << testSo << ": All tests passed.";
       if (olocalCounters.ignoredOnLinux > 0) 
       {
         std::cout << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; ";
