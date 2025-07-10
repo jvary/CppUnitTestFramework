@@ -42,17 +42,6 @@
 
 #define CPPT_ISVISIBLE __attribute__ ((visibility ("default")))
 
-namespace Microsoft {
-namespace VisualStudio {
-namespace CppUnitTestFramework {
-  template<typename T>
-  inline std::wstring ToString(const T& v) {
-    return std::wstring();
-  }
-}
-}
-}
-
 namespace MyTest
 {
   class CPPT_ISVISIBLE TestClassImpl
@@ -164,7 +153,6 @@ CPPT_ISVISIBLE [[gnu::used]] static MyTest::MethodAttributeInfo CATNAME(__GetMet
   }\
   [[gnu::used]] void methodName()
 
-
 namespace AssertX
 {
   class CPPT_ISVISIBLE AssertFailed : public std::runtime_error
@@ -243,14 +231,7 @@ namespace AssertX
     return message;    
   }
 
-#define RETURN_WIDE_STRING(inputValue)  std::wstringstream _cppts;	_cppts << inputValue; return _cppts.str()  
-  template<typename T> std::wstring ToString(T t){ RETURN_WIDE_STRING(t); }
-	template<> inline std::wstring ToString<const char*>(const char* t){ if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
-	template<> inline std::wstring ToString<const wchar_t*>(const wchar_t* t) { if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
-	template<> inline std::wstring ToString<char*>(char* t){ if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
-	template<> inline std::wstring ToString<wchar_t*>(wchar_t* t) { if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }  
-	template<> inline std::wstring ToString<const std::string>(const std::string t) { return ToString(t.c_str()); }    
-  template<> inline std::wstring ToString<std::string>(std::string t) { return ToString(t.c_str()); }    
+#define RETURN_WIDE_STRING(inputValue)  std::wstringstream _cppts;	_cppts << inputValue; return _cppts.str()
 }
 
 inline bool CppUnitStrCmpA(const char* str1, const char* str2, bool ignoreCase) {return AssertX::CppUnitStrCmp<char>(str1, str2, ignoreCase);}
@@ -281,11 +262,24 @@ static inline void FailOnCondition(bool condition, const wchar_t* message, const
   FailOnCondition(condition, message ? std::wstring(message) : std::wstring(), location);
 }
 
+namespace Microsoft::VisualStudio::CppUnitTestFramework
+{
+    template<typename T> std::wstring ToString(const T* t){ RETURN_WIDE_STRING(t); }
+    template<typename T> std::wstring ToString(T* t){ RETURN_WIDE_STRING(t); }
+    template<typename T> std::wstring ToString(const T& rT){ RETURN_WIDE_STRING(rT); }    
+    template<> inline std::wstring ToString<const char>(const char* t){ if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
+	template<> inline std::wstring ToString<const wchar_t>(const wchar_t* t) { if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
+	template<> inline std::wstring ToString<char>(char* t){ if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
+	template<> inline std::wstring ToString<wchar_t>(wchar_t* t) { if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }  
+	template<> inline std::wstring ToString<std::string>(const std::string &t) { return ToString(t.c_str()); }    
+}
+namespace MsCppTest = Microsoft::VisualStudio::CppUnitTestFramework;
+
 class Assert
 {
 #define DEFAULT_IGNORECASE false
-#define EQUALS_MESSAGE(expected, actual, message)           AssertX::GetAssertMessage(true, AssertX::ToString(expected), AssertX::ToString(actual), message)
-#define NOT_EQUALS_MESSAGE(notExpected, actual, message)    AssertX::GetAssertMessage(false, AssertX::ToString(notExpected), AssertX::ToString(actual), message)
+#define EQUALS_MESSAGE(expected, actual, message)           AssertX::GetAssertMessage(true, MsCppTest::ToString(expected), MsCppTest::ToString(actual), message)
+#define NOT_EQUALS_MESSAGE(notExpected, actual, message)    AssertX::GetAssertMessage(false, MsCppTest::ToString(notExpected), MsCppTest::ToString(actual), message)
 
 public:
     template<typename T> static void AreEqual(const T& expected, const T& actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
@@ -327,7 +321,7 @@ public:
             
     static void AreEqual(const char* expected, const char* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreEqual(expected, actual, DEFAULT_IGNORECASE, AssertX::ToString(message).c_str(), location);
+        AreEqual(expected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
     }
     
     static void AreEqual(const char* expected, const char* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
@@ -342,7 +336,7 @@ public:
             
     static void AreEqual(const wchar_t* expected, const wchar_t* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreEqual(expected, actual, DEFAULT_IGNORECASE, AssertX::ToString(message).c_str(), location);
+        AreEqual(expected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
     }
     
     static void AreEqual(const wchar_t* expected, const wchar_t* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
@@ -379,7 +373,7 @@ public:
     
     static void AreNotEqual(const char* notExpected, const char* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, AssertX::ToString(message).c_str(), location);
+        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
     }
     
     static void AreNotEqual(const char* notExpected, const char* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
@@ -394,7 +388,7 @@ public:
 
     static void AreNotEqual(const wchar_t* notExpected, const wchar_t* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, AssertX::ToString(message).c_str(), location);
+        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
     }
     
     static void AreNotEqual(const wchar_t* notExpected, const wchar_t* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
