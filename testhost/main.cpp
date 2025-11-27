@@ -89,17 +89,22 @@ constexpr const char* RED_COLOR = "\033[31m";
 constexpr const char* GREEN_COLOR = "\033[32m";
 constexpr const char* YELLOW_COLOR = "\033[33m";
 
+const char* current_reset_color = RESET_COLOR;
+const char* current_red_color = RED_COLOR;
+const char* current_green_color = GREEN_COLOR;
+const char* current_yellow_color = YELLOW_COLOR;
+
 // --------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
   if (argc < 2) {
-    std::cerr << RED_COLOR << "Fill arguments" << RESET_COLOR << std::endl;
+    std::cerr << current_red_color << "Fill arguments" << current_reset_color << std::endl;
     return -1;
   }
 
   if (parseArgs(argc-1, argv+1) < 0)
   {
-    std::cerr << RED_COLOR << "Error parsing arguments" << RESET_COLOR << std::endl;
+    std::cerr << current_red_color << "Error parsing arguments" << current_reset_color << std::endl;
     return -1;
   }
 
@@ -156,13 +161,13 @@ int main(int argc, char* argv[])
     try {
       lib.load(testSo);
     } catch (const std::exception& ex) {
-      std::cerr << RED_COLOR << "Exception loading lib at " << ex.what() << RESET_COLOR << std::endl;
+      std::cerr << current_red_color << "Exception loading lib at " << ex.what() << current_reset_color << std::endl;
       return -1;
     }
 
     testeeDlHandle = dlopen(testSo.c_str(), RTLD_LAZY);
     if (!testeeDlHandle) {
-        std::cerr << RED_COLOR << "dlopen failed: " << dlerror() << RESET_COLOR << std::endl;
+        std::cerr << current_red_color << "dlopen failed: " << dlerror() << current_reset_color << std::endl;
         return -1;
     }
     dlerror(); 
@@ -178,25 +183,25 @@ int main(int argc, char* argv[])
     if (failedTests.size() > 0)
     {
       std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-      std::cout << RED_COLOR << failedTests.size() << " of " << olocalCounters.totalTests << " Tests failed.\n";
-      std::cout << "Summary:\n" << RESET_COLOR;
-      std::wcerr << RED_COLOR;
+      std::cout << current_red_color << failedTests.size() << " of " << olocalCounters.totalTests << " Tests failed.\n";
+      std::cout << "Summary:" << current_reset_color << std::endl;
+      std::cerr << current_red_color;
       for(const auto& ft : failedTests)
       {
         std::wcerr << converter.from_bytes(ft.first) << ": " << converter.from_bytes(ft.second.what()) << std::endl;
       }
-      std::wcerr << RESET_COLOR;
+      std::cerr << current_reset_color;
     } 
     else 
     {
-      std::cout << GREEN_COLOR << testSo << ": All tests passed." << RESET_COLOR;
+      std::cout << testSo << current_green_color << ": All tests passed." << current_reset_color;
       if (olocalCounters.ignoredOnLinux > 0) 
       {
-        std::cout << YELLOW_COLOR << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << RESET_COLOR;
+        std::cout << current_yellow_color << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << current_reset_color;
       }
       if (olocalCounters.ignored > 0)
       {
-        std::cout << YELLOW_COLOR << " " << olocalCounters.ignored << " ignored total; " << RESET_COLOR;
+        std::cout << current_yellow_color << " " << olocalCounters.ignored << " ignored total; " << current_reset_color;
       }
     }
 
@@ -206,7 +211,7 @@ int main(int argc, char* argv[])
   }
   else 
   {
-    std::cerr << YELLOW_COLOR << "No tests found in " << testSo << RESET_COLOR << std::endl;
+    std::cerr << current_yellow_color << "No tests found in " << testSo << current_reset_color << std::endl;
 
     TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
     return filter.empty() ? -1 : 0;
@@ -248,7 +253,7 @@ void ProcessMethod( const std::string &rMethodInfoName
     } 
     catch(std::exception &e)
     {
-        std::cerr << RED_COLOR << "Exception at " << e.what() << " for " << fncGetAttribInfo << RESET_COLOR << std::endl;
+        std::cerr << current_red_color << "Exception at " << e.what() << " for " << fncGetAttribInfo << current_reset_color << std::endl;
         rCurrentTest.error = true;
         return;
     }
@@ -258,7 +263,7 @@ void ProcessMethod( const std::string &rMethodInfoName
 
     if (!info.ignore && !info.ignoreOnLinux)
     {
-        std::cout << GREEN_COLOR << "Calling Test " << RESET_COLOR << testname << "\n";
+        std::cout << current_green_color << "Calling Test " << current_reset_color << testname << "\n";
         try
         {
             // Get Function to fetch entry points
@@ -284,7 +289,7 @@ void ProcessMethod( const std::string &rMethodInfoName
             }
             catch(...)
             {
-                std::cerr << RED_COLOR << "Unexpected exception" << RESET_COLOR << std::endl;
+                std::cerr << current_red_color << "Unexpected exception" << current_reset_color << std::endl;
                 auto ex = AssertX::AssertFailed("Unexpected exception");
                 rFailedTests.push_back(std::make_pair(testname, ex ));
                 rCurrentTest.pFailure= std::make_shared<AssertX::AssertFailed>(ex);
@@ -298,13 +303,13 @@ void ProcessMethod( const std::string &rMethodInfoName
         } 
         catch (const std::exception& ex)
         {
-            std::cerr << RED_COLOR << "Exception at " << ex.what() << RESET_COLOR << std::endl;
+            std::cerr << current_red_color << "Exception at " << ex.what() << current_reset_color << std::endl;
             rCurrentTest.error = true;
         }
     }
     else
     {
-        std::cout << YELLOW_COLOR << "Ignoring Test " << testname << RESET_COLOR << "\n";
+        std::cout << current_yellow_color << "Ignoring Test " << testname << current_reset_color << "\n";
         rLocalCounters.ignored++;
         rCurrentTest.ignored = true;
     }
@@ -333,6 +338,13 @@ int parseArgs(int argc, char* argv[])
         else if (strcmp(argv[i], "--trx") == 0)
         {
             testTrx = argv[i + 1];
+        }
+        else if (strcmp(argv[i], "--no-color") == 0)
+        {
+            current_reset_color = "";
+            current_red_color = "";
+            current_green_color = "";
+            current_yellow_color = "";
         }
         else
         {
@@ -374,8 +386,8 @@ void TryRunCFunction(const std::string& functionName, const std::string& prettyN
     try {
         fnc();
     } catch (const std::exception& ex) {
-        std::cerr << RED_COLOR << "Exception at " << ex.what() << " for " << functionName << RESET_COLOR << std::endl;
+        std::cerr << current_red_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
     } catch (...) {
-        std::cerr << RED_COLOR << "Unknown exception for " << functionName << RESET_COLOR << std::endl;
+        std::cerr << current_red_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
     }
 }
