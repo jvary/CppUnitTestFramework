@@ -84,16 +84,27 @@ inline bool containsString(const std::vector<std::string>& vec, const std::strin
 }
 
 // --------------------------------------------------------------------------
+constexpr const char* RESET_COLOR = "\033[0m";
+constexpr const char* RED_COLOR = "\033[31m";
+constexpr const char* GREEN_COLOR = "\033[32m";
+constexpr const char* YELLOW_COLOR = "\033[33m";
+
+const char* current_reset_color = RESET_COLOR;
+const char* current_red_color = RED_COLOR;
+const char* current_green_color = GREEN_COLOR;
+const char* current_yellow_color = YELLOW_COLOR;
+
+// --------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
   if (argc < 2) {
-    std::cerr << "Fill arguments" << std::endl;
+    std::cerr << current_red_color << "Fill arguments" << current_reset_color << std::endl;
     return -1;
   }
 
   if (parseArgs(argc-1, argv+1) < 0)
   {
-    std::cerr << "Error parsing arguments" << std::endl;
+    std::cerr << current_red_color << "Error parsing arguments" << current_reset_color << std::endl;
     return -1;
   }
 
@@ -150,13 +161,13 @@ int main(int argc, char* argv[])
     try {
       lib.load(testSo);
     } catch (const std::exception& ex) {
-      std::cerr << "Exception loading lib at " << ex.what() << std::endl;
+      std::cerr << current_red_color << "Exception loading lib at " << ex.what() << current_reset_color << std::endl;
       return -1;
     }
 
     testeeDlHandle = dlopen(testSo.c_str(), RTLD_LAZY);
     if (!testeeDlHandle) {
-        std::cerr << "dlopen failed: " << dlerror() << std::endl;
+        std::cerr << current_red_color << "dlopen failed: " << dlerror() << current_reset_color << std::endl;
         return -1;
     }
     dlerror(); 
@@ -172,22 +183,26 @@ int main(int argc, char* argv[])
     if (failedTests.size() > 0)
     {
       std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-      std::cout << failedTests.size() << " of " << olocalCounters.totalTests << " Tests failed.\n";
-      std::cout << "Summary:\n";
+      std::cout << current_red_color << failedTests.size() << " of " << olocalCounters.totalTests << " Tests failed.\n";
+      std::cout << "Summary:" << current_reset_color << std::endl;
+      std::cerr << current_red_color;
       for(const auto& ft : failedTests)
       {
         std::wcerr << converter.from_bytes(ft.first) << ": " << converter.from_bytes(ft.second.what()) << std::endl;
       }
+      std::cerr << current_reset_color;
     } 
     else 
     {
-      std::cout << testSo << ": All tests passed.";
+      std::cout << testSo << current_green_color << ": All tests passed." << current_reset_color;
       if (olocalCounters.ignoredOnLinux > 0) 
       {
-        std::cout << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; ";
-        std::cout << " " << olocalCounters.ignored << " ignored total; ";        
+        std::cout << current_yellow_color << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << current_reset_color;
       }
-      std::cout << std::endl;
+      if (olocalCounters.ignored > 0)
+      {
+        std::cout << current_yellow_color << " " << olocalCounters.ignored << " ignored total; " << current_reset_color;
+      }
     }
 
     testCompletion = Now();
@@ -196,7 +211,8 @@ int main(int argc, char* argv[])
   }
   else 
   {
-    std::cerr << "No tests found in " << testSo << std::endl;
+    std::cerr << current_yellow_color << "No tests found in " << testSo << current_reset_color << std::endl;
+
     TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
     return filter.empty() ? -1 : 0;
   }  
@@ -237,7 +253,7 @@ void ProcessMethod( const std::string &rMethodInfoName
     } 
     catch(std::exception &e)
     {
-        std::cerr << "Exception at " << e.what() << " for " << fncGetAttribInfo << std::endl;
+        std::cerr << current_red_color << "Exception at " << e.what() << " for " << fncGetAttribInfo << current_reset_color << std::endl;
         rCurrentTest.error = true;
         return;
     }
@@ -247,7 +263,7 @@ void ProcessMethod( const std::string &rMethodInfoName
 
     if (!info.ignore && !info.ignoreOnLinux)
     {
-        std::cout << "Calling Test " << testname << "\n";
+        std::cout << current_green_color << "Calling Test " << current_reset_color << testname << "\n";
         try
         {
             // Get Function to fetch entry points
@@ -273,7 +289,7 @@ void ProcessMethod( const std::string &rMethodInfoName
             }
             catch(...)
             {
-                std::cerr << "Unexpected exception" << std::endl;
+                std::cerr << current_red_color << "Unexpected exception" << current_reset_color << std::endl;
                 auto ex = AssertX::AssertFailed("Unexpected exception");
                 rFailedTests.push_back(std::make_pair(testname, ex ));
                 rCurrentTest.pFailure= std::make_shared<AssertX::AssertFailed>(ex);
@@ -287,13 +303,13 @@ void ProcessMethod( const std::string &rMethodInfoName
         } 
         catch (const std::exception& ex)
         {
-            std::cerr << "Exception at " << ex.what() << std::endl;
+            std::cerr << current_red_color << "Exception at " << ex.what() << current_reset_color << std::endl;
             rCurrentTest.error = true;
         }
     }
     else
     {
-        std::cout << "Ignoring Test " << testname << "\n";
+        std::cout << current_yellow_color << "Ignoring Test " << testname << current_reset_color << "\n";
         rLocalCounters.ignored++;
         rCurrentTest.ignored = true;
     }
@@ -303,29 +319,30 @@ void ProcessMethod( const std::string &rMethodInfoName
 //starting 1 pass the exec name
 int parseArgs(int argc, char* argv[])
 {
-    if (argc %2 != 0)
-    {
-        std::cerr << "Invalid number of arguments" << std::endl;
-        return -1;
-    }
-
     for (int i = 0; i < argc; i += 2)
     {
-        if (strcmp(argv[i], "--so") == 0)
+        if (strcmp(argv[i], "--so") == 0 && (i + 1) < argc)
         {
             testSo = argv[i + 1];
         }
-        else if (strcmp(argv[i], "--filter") == 0)
+        else if (strcmp(argv[i], "--filter") == 0 && (i + 1) < argc)
         {
             testFilter = argv[i + 1];
         }
-        else if (strcmp(argv[i], "--trx") == 0)
+        else if (strcmp(argv[i], "--trx") == 0 && (i + 1) < argc)
         {
             testTrx = argv[i + 1];
         }
+        else if (strcmp(argv[i], "--no-color") == 0)
+        {
+            current_reset_color = "";
+            current_red_color = "";
+            current_green_color = "";
+            current_yellow_color = "";
+        }
         else
         {
-            std::cerr << "Unknown argument: " << argv[i] << std::endl;
+            std::cerr << "Unknown argument or missing value: " << argv[i] << std::endl;
             return -1;
         }
     }
@@ -363,8 +380,8 @@ void TryRunCFunction(const std::string& functionName, const std::string& prettyN
     try {
         fnc();
     } catch (const std::exception& ex) {
-        std::cerr << "Exception at " << ex.what() << " for " << functionName << std::endl;
+        std::cerr << current_red_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
     } catch (...) {
-        std::cerr << "Unknown exception for " << functionName << std::endl;
+        std::cerr << current_red_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
     }
 }
