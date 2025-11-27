@@ -319,23 +319,17 @@ void ProcessMethod( const std::string &rMethodInfoName
 //starting 1 pass the exec name
 int parseArgs(int argc, char* argv[])
 {
-    if (argc %2 != 0)
-    {
-        std::cerr << "Invalid number of arguments" << std::endl;
-        return -1;
-    }
-
     for (int i = 0; i < argc; i += 2)
     {
-        if (strcmp(argv[i], "--so") == 0)
+        if (strcmp(argv[i], "--so") == 0 && (i + 1) < argc)
         {
             testSo = argv[i + 1];
         }
-        else if (strcmp(argv[i], "--filter") == 0)
+        else if (strcmp(argv[i], "--filter") == 0 && (i + 1) < argc)
         {
             testFilter = argv[i + 1];
         }
-        else if (strcmp(argv[i], "--trx") == 0)
+        else if (strcmp(argv[i], "--trx") == 0 && (i + 1) < argc)
         {
             testTrx = argv[i + 1];
         }
@@ -348,7 +342,7 @@ int parseArgs(int argc, char* argv[])
         }
         else
         {
-            std::cerr << "Unknown argument: " << argv[i] << std::endl;
+            std::cerr << "Unknown argument or missing value: " << argv[i] << std::endl;
             return -1;
         }
     }
