@@ -53,7 +53,7 @@ struct LocalCounter
 {
   int totalTests = 0;
   int ignoredOnLinux = 0;
-  int ignored = 0;    
+  int ignored = 0;
 };
 
 void* testeeDlHandle = nullptr;
@@ -64,7 +64,7 @@ void* testeeDlHandle = nullptr;
 int parseArgs(int argc, char* argv[]);
 
 void ProcessMethod( const std::string &rMethodInfoName
-                  , const std::set<std::string>& testfunctionsAttributes              
+                  , const std::set<std::string>& testfunctionsAttributes
                   , std::vector<Test>& rAllTests
                   , std::vector<std::pair<std::string, AssertX::AssertFailed>>& rFailedTests
                   , LocalCounter& rLocalCounters
@@ -126,16 +126,16 @@ int main(int argc, char* argv[])
     {
       std::string demangled = boost::core::demangle(sym.c_str());
       if (endsWith(demangled, "()")) {
-        testfunctions.push_back(demangled.substr(0, demangled.length()-2));        
+        testfunctions.push_back(demangled.substr(0, demangled.length()-2));
       }
     }
     else if (sym.find("__GetMethodAttributeInfo_") != std::string::npos)
     {
       std::string demangled = boost::core::demangle(sym.c_str());
       if (endsWith(demangled, "()")) {
-        testfunctionsAttributes.insert(demangled.substr(0, demangled.length()-2));        
+        testfunctionsAttributes.insert(demangled.substr(0, demangled.length()-2));
       }
-    }    
+    }
   }
 
   std::sort(testfunctions.begin(), testfunctions.end());
@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
         std::cerr << current_red_color << "dlopen failed: " << dlerror() << current_reset_color << std::endl;
         return -1;
     }
-    dlerror(); 
+    dlerror();
 
     TryRunCFunction("_Test_Init_Module", "module init");
 
@@ -191,11 +191,11 @@ int main(int argc, char* argv[])
         std::wcerr << converter.from_bytes(ft.first) << ": " << converter.from_bytes(ft.second.what()) << std::endl;
       }
       std::cerr << current_reset_color;
-    } 
-    else 
+    }
+    else
     {
       std::cout << testSo << current_green_color << ": All tests passed." << current_reset_color;
-      if (olocalCounters.ignoredOnLinux > 0) 
+      if (olocalCounters.ignoredOnLinux > 0)
       {
         std::cout << current_yellow_color << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << current_reset_color;
       }
@@ -209,13 +209,13 @@ int main(int argc, char* argv[])
 
     TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
   }
-  else 
+  else
   {
     std::cerr << current_yellow_color << "No tests found in " << testSo << current_reset_color << std::endl;
 
     TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
     return filter.empty() ? -1 : 0;
-  }  
+  }
 
   return 0;
 }
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
 static const std::string needle = "__GetTestMethodInfo_";
 static const std::string attributeInfo = "__GetMethodAttributeInfo_";
 void ProcessMethod( const std::string &rMethodInfoName
-                  , const std::set<std::string>& testfunctionsAttributes              
+                  , const std::set<std::string>& testfunctionsAttributes
                   , std::vector<Test>& rAllTests
                   , std::vector<std::pair<std::string, AssertX::AssertFailed>>& rFailedTests
                   , LocalCounter& rLocalCounters
@@ -234,7 +234,7 @@ void ProcessMethod( const std::string &rMethodInfoName
     std::string fncGetAttribInfo= rMethodInfoName;
     fncGetAttribInfo.replace(fncGetAttribInfo.find(needle), needle.length(), attributeInfo);
 
-    rAllTests.push_back(Test()); 
+    rAllTests.push_back(Test());
     Test& rCurrentTest = rAllTests.back();
     rCurrentTest.functionName = testname;
     rCurrentTest.testId = Guid::New();
@@ -250,7 +250,7 @@ void ProcessMethod( const std::string &rMethodInfoName
             auto fnc = import_mangled<MyTest::MethodAttributeInfo()>(testSo, fncGetAttribInfo);
             info = fnc();
         }
-    } 
+    }
     catch(std::exception &e)
     {
         std::cerr << current_red_color << "Exception at " << e.what() << " for " << fncGetAttribInfo << current_reset_color << std::endl;
@@ -285,7 +285,7 @@ void ProcessMethod( const std::string &rMethodInfoName
             catch(const AssertX::AssertFailed& ex)
             {
                 rFailedTests.push_back(std::make_pair(testname, ex));
-                rCurrentTest.pFailure= std::make_shared<AssertX::AssertFailed>(ex);      
+                rCurrentTest.pFailure= std::make_shared<AssertX::AssertFailed>(ex);
             }
             catch(...)
             {
@@ -300,7 +300,7 @@ void ProcessMethod( const std::string &rMethodInfoName
             classUnderTest->DeInitClass();
             mInfo->pDestroyMethod(classUnderTest);
             ++rLocalCounters.totalTests;
-        } 
+        }
         catch (const std::exception& ex)
         {
             std::cerr << current_red_color << "Exception at " << ex.what() << current_reset_color << std::endl;
@@ -319,30 +319,38 @@ void ProcessMethod( const std::string &rMethodInfoName
 //starting 1 pass the exec name
 int parseArgs(int argc, char* argv[])
 {
+    if (argc %2 != 0)
+    {
+        std::cerr << "Invalid number of arguments" << std::endl;
+        return -1;
+    }
+
     for (int i = 0; i < argc; i += 2)
     {
-        if (strcmp(argv[i], "--so") == 0 && (i + 1) < argc)
+        if (strcmp(argv[i], "--so") == 0)
         {
             testSo = argv[i + 1];
         }
-        else if (strcmp(argv[i], "--filter") == 0 && (i + 1) < argc)
+        else if (strcmp(argv[i], "--filter") == 0)
         {
             testFilter = argv[i + 1];
         }
-        else if (strcmp(argv[i], "--trx") == 0 && (i + 1) < argc)
+        else if (strcmp(argv[i], "--trx") == 0)
         {
             testTrx = argv[i + 1];
         }
-        else if (strcmp(argv[i], "--no-color") == 0)
+        else if (strcmp(argv[i], "--color") == 0)
         {
-            current_reset_color = "";
-            current_red_color = "";
-            current_green_color = "";
-            current_yellow_color = "";
+            const auto *pValue = argv[i + 1];
+            bool colorBool = pValue[0] == 'y' || pValue[0] == 'Y';
+            current_reset_color   = colorBool ? RESET_COLOR  : "";
+            current_red_color     = colorBool ? RED_COLOR    : "";
+            current_green_color   = colorBool ? GREEN_COLOR  : "";
+            current_yellow_color  = colorBool ? YELLOW_COLOR : "";
         }
         else
         {
-            std::cerr << "Unknown argument or missing value: " << argv[i] << std::endl;
+            std::cerr << "Unknown argument: " << argv[i] << std::endl;
             return -1;
         }
     }
@@ -352,12 +360,12 @@ int parseArgs(int argc, char* argv[])
         return -1;
     }
 
-    if (testFilter.empty())    
+    if (testFilter.empty())
         std::cout  << "No filter provided" << std::endl;
     else
         std::cout  << "Filter is : " << testFilter << std::endl;
 
-    if (testTrx.empty())    
+    if (testTrx.empty())
         std::cout  << "No trx sink" << std::endl;
     else
         std::cout  << "Trx sink is : " << testTrx << std::endl;
