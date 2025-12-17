@@ -98,9 +98,9 @@ constexpr const char* GREEN_COLOR = "\033[32m";
 constexpr const char* YELLOW_COLOR = "\033[33m";
 
 static const char* current_reset_color = RESET_COLOR;
-static const char* current_red_color = RED_COLOR;
-static const char* current_green_color = GREEN_COLOR;
-static const char* current_yellow_color = YELLOW_COLOR;
+static const char* current_error_color = RED_COLOR;
+static const char* current_success_color = GREEN_COLOR;
+static const char* current_warning_color = YELLOW_COLOR;
 
 static bool verbose = false;
 
@@ -108,13 +108,13 @@ static bool verbose = false;
 int cutf_testshostmain(int argc, char* argv[])
 {
   if (argc < 2) {
-    std::cerr << current_red_color << "Fill arguments" << current_reset_color << std::endl;
+    std::cerr << current_error_color << "Fill arguments" << current_reset_color << std::endl;
     return -1;
   }
 
   if (parseArgs(argc-1, argv+1) < 0)
   {
-    std::cerr << current_red_color << "Error parsing arguments" << current_reset_color << std::endl;
+    std::cerr << current_error_color << "Error parsing arguments" << current_reset_color << std::endl;
     return -1;
   }
 
@@ -126,7 +126,7 @@ int cutf_testshostmain(int argc, char* argv[])
 
   if (!std::filesystem::exists(testSo))
   {
-    std::cerr << current_red_color << "Can't find module '" << testSo << "'" << std::endl;
+    std::cerr << current_error_color << "Can't find module '" << testSo << "'" << std::endl;
     return -1;
   }
 
@@ -180,13 +180,13 @@ int cutf_testshostmain(int argc, char* argv[])
     try {
       lib.load(testSo);
     } catch (const std::exception& ex) {
-      std::cerr << current_red_color << "Exception loading lib at " << ex.what() << current_reset_color << std::endl;
+      std::cerr << current_error_color << "Exception loading lib at " << ex.what() << current_reset_color << std::endl;
       return -1;
     }
 
     testeeDlHandle = dlopen(testSo.c_str(), RTLD_LAZY);
     if (!testeeDlHandle) {
-        std::cerr << current_red_color << "dlopen failed: " << dlerror() << current_reset_color << std::endl;
+        std::cerr << current_error_color << "dlopen failed: " << dlerror() << current_reset_color << std::endl;
         return -1;
     }
     dlerror();
@@ -212,9 +212,9 @@ int cutf_testshostmain(int argc, char* argv[])
     if (failedTests.size() > 0)
     {
       std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-      std::cout << current_red_color << failedTests.size() << " of " << olocalCounters.totalTests << " Tests failed.\n";
+      std::cout << current_error_color << failedTests.size() << " of " << olocalCounters.totalTests << " Tests failed.\n";
       std::cout << "Summary:" << current_reset_color << std::endl;
-      std::cerr << current_red_color;
+      std::cerr << current_error_color;
       for(const auto& ft : failedTests)
       {
         std::wcerr << converter.from_bytes(ft.first) << ": " << converter.from_bytes(ft.second.what()) << std::endl;
@@ -224,14 +224,14 @@ int cutf_testshostmain(int argc, char* argv[])
     }
     else
     {
-      std::cout << testSo << current_green_color << ": All tests passed." << current_reset_color;
+      std::cout << testSo << current_success_color << ": All tests passed." << current_reset_color;
       if (olocalCounters.ignoredOnLinux > 0)
       {
-        std::cout << current_yellow_color << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << current_reset_color;
+        std::cout << current_warning_color << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << current_reset_color;
       }
       if (olocalCounters.ignored > 0)
       {
-        std::cout << current_yellow_color << " " << olocalCounters.ignored << " ignored total; " << current_reset_color;
+        std::cout << current_warning_color << " " << olocalCounters.ignored << " ignored total; " << current_reset_color;
       }
       std::cout << std::endl;
     }
@@ -242,7 +242,7 @@ int cutf_testshostmain(int argc, char* argv[])
   }
   else
   {
-    std::cerr << current_yellow_color << "No tests found in " << testSo << current_reset_color << std::endl;
+    std::cerr << current_warning_color << "No tests found in " << testSo << current_reset_color << std::endl;
 
     TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
     return filter.empty() ? -1 : 0;
@@ -284,7 +284,7 @@ void ProcessMethod( const std::string &rMethodInfoName
     }
     catch(std::exception &e)
     {
-        std::cerr << current_red_color << "Exception at " << e.what() << " for " << fncGetAttribInfo << current_reset_color << std::endl;
+        std::cerr << current_error_color << "Exception at " << e.what() << " for " << fncGetAttribInfo << current_reset_color << std::endl;
         rCurrentTest.error = true;
         return;
     }
@@ -294,7 +294,7 @@ void ProcessMethod( const std::string &rMethodInfoName
 
     if (!info.ignore && !info.ignoreOnLinux)
     {
-        std::cout << current_green_color << "Calling Test " << current_reset_color << testname << "\n";
+        std::cout << current_success_color << "Calling Test " << current_reset_color << testname << "\n";
         try
         {
             // Get Function to fetch entry points
@@ -316,11 +316,12 @@ void ProcessMethod( const std::string &rMethodInfoName
             catch(const AssertX::AssertFailed& ex)
             {
                 rFailedTests.push_back(std::make_pair(testname, ex));
-                rCurrentTest.pFailure= std::make_shared<AssertX::AssertFailed>(ex);
+                rCurrentTest.pFailure = std::make_shared<AssertX::AssertFailed>(ex);
+                std::cerr << current_error_color << "Failure " << ex.what() << current_reset_color << std::endl;
             }
             catch(...)
             {
-                std::cerr << current_red_color << "Unexpected exception" << current_reset_color << std::endl;
+                std::cerr << current_error_color << "Unexpected exception" << current_reset_color << std::endl;
                 auto ex = AssertX::AssertFailed("Unexpected exception");
                 rFailedTests.push_back(std::make_pair(testname, ex ));
                 rCurrentTest.pFailure= std::make_shared<AssertX::AssertFailed>(ex);
@@ -334,13 +335,13 @@ void ProcessMethod( const std::string &rMethodInfoName
         }
         catch (const std::exception& ex)
         {
-            std::cerr << current_red_color << "Exception at " << ex.what() << current_reset_color << std::endl;
+            std::cerr << current_error_color << "Exception at " << ex.what() << current_reset_color << std::endl;
             rCurrentTest.error = true;
         }
     }
     else
     {
-        std::cout << current_yellow_color << "Ignoring Test " << testname << current_reset_color << "\n";
+        std::cout << current_warning_color << "Ignoring Test " << testname << current_reset_color << "\n";
         rLocalCounters.ignored++;
         rCurrentTest.ignored = true;
     }
@@ -374,10 +375,10 @@ int parseArgs(int argc, char* argv[])
         {
             const auto *pValue = argv[i + 1];
             bool colorBool = pValue[0] == 'y' || pValue[0] == 'Y' || pValue[0] == 't' || pValue[0] == 'T';
-            current_reset_color   = colorBool ? RESET_COLOR  : "";
-            current_red_color     = colorBool ? RED_COLOR    : "";
-            current_green_color   = colorBool ? GREEN_COLOR  : "";
-            current_yellow_color  = colorBool ? YELLOW_COLOR : "";
+            current_reset_color = colorBool ? RESET_COLOR  : "";
+            current_error_color = colorBool ? RED_COLOR    : "";
+            current_success_color = colorBool ? GREEN_COLOR  : "";
+            current_warning_color = colorBool ? YELLOW_COLOR : "";
         }
         else if (strcmp(argv[i], "--verbose") == 0)
         {
@@ -424,9 +425,9 @@ void TryRunCFunction(const std::string& functionName, const std::string& prettyN
     try {
         fnc();
     } catch (const std::exception& ex) {
-        std::cerr << current_red_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
+        std::cerr << current_error_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
     } catch (...) {
-        std::cerr << current_red_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
+        std::cerr << current_error_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
     }
 }
 
@@ -445,9 +446,9 @@ std::string TryRunCFunctionWithLitteralRet(const std::string& functionName, cons
     try {
         return fnc();
     } catch (const std::exception& ex) {
-        std::cerr << current_red_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
+        std::cerr << current_error_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
     } catch (...) {
-        std::cerr << current_red_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
+        std::cerr << current_error_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
     }
     return std::string("FAILURE TO LOAD");
 }
