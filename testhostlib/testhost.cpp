@@ -1,0 +1,468 @@
+//------------------------------------------------------------------------
+// Initial code by Kretikus Roman, released on MIT license
+// Copyright (c) 2025
+//    https://github.com/Kretikus/CppUnitTestFrameworkWrapper
+//
+// This file is under the MIT License (MIT).
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// ==========================================================================
+// Additional work by Julien Vary for Genetec, Inc.
+//------------------------------------------------------------------------
+
+#include "testhost.h"
+
+#include <boost/core/demangle.hpp>
+#include <boost/dll.hpp>
+#include <boost/dll/import_mangled.hpp>
+
+#include <mstest.h>
+
+#include <iostream>
+#include <set>
+#include <filesystem>
+
+#include "guid.h"
+#include "timehelpers.h"
+#include "test.h"
+#include "trxoutput.h"
+
+static std::string testSo;
+static std::string testFilter;
+static std::string testTrx;
+
+static SomeTime testEntry = Now();
+static SomeTime testCompletion;
+
+struct LocalCounter
+{
+  int totalTests = 0;
+  int ignoredOnLinux = 0;
+  int ignored = 0;
+};
+
+static void* testeeDlHandle = nullptr;
+
+// --------------------------------------------------------------------------
+//   forwards
+// --------------------------------------------------------------------------
+int parseArgs(int argc, char* argv[]);
+
+void ProcessMethod( const std::string &rMethodInfoName
+                  , const std::set<std::string>& testfunctionsAttributes
+                  , std::vector<Test>& rAllTests
+                  , std::vector<std::pair<std::string, AssertX::AssertFailed>>& rFailedTests
+                  , LocalCounter& rLocalCounters
+                  );
+void TryRunCFunction(const std::string& functionName, const std::string& prettyName);
+std::string TryRunCFunctionWithLiteralRet(const std::string& functionName, const std::string& prettyName);
+
+static void* onload_callback_context = nullptr;
+static void* onunload_callback_context = nullptr;
+static OnLoadedTestSo onload_callback = nullptr;
+static OnUnloadedTestSo onunload_callback = nullptr;
+
+// --------------------------------------------------------------------------
+inline bool endsWith(const std::string& value, const std::string& ending)
+{
+    if (ending.size() > value.size()) return false;
+    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+// --------------------------------------------------------------------------
+inline bool containsString(const std::vector<std::string>& vec, const std::string& value) {
+    return std::find(vec.begin(), vec.end(), value) != vec.end();
+}
+
+// --------------------------------------------------------------------------
+constexpr const char* RESET_COLOR = "\033[0m";
+constexpr const char* RED_COLOR = "\033[31m";
+constexpr const char* GREEN_COLOR = "\033[32m";
+constexpr const char* YELLOW_COLOR = "\033[33m";
+
+static const char* current_reset_color = RESET_COLOR;
+static const char* current_error_color = RED_COLOR;
+static const char* current_success_color = GREEN_COLOR;
+static const char* current_warning_color = YELLOW_COLOR;
+
+static bool verbose = false;
+
+// --------------------------------------------------------------------------
+int cutf_testhostmain(int argc, char* argv[])
+{
+  if (argc < 2) {
+    std::cerr << current_error_color << "Fill arguments" << current_reset_color << std::endl;
+    return -1;
+  }
+
+  if (parseArgs(argc-1, argv+1) < 0)
+  {
+    std::cerr << current_error_color << "Error parsing arguments" << current_reset_color << std::endl;
+    return -1;
+  }
+
+  if (verbose)
+  {
+    std::cout << "Running within " << std::filesystem::current_path() << std::endl;
+    std::cout << "Testing dll " << testSo << std::endl;
+  }
+
+  if (!std::filesystem::exists(testSo))
+  {
+    std::cerr << current_error_color << "Can't find module '" << testSo << "'" << std::endl;
+    return -1;
+  }
+
+  // Class `library_info` can extract information from a library
+  boost::dll::library_info inf(testSo);
+
+  const std::string filter = testFilter;
+
+  // Getting exported symbols
+  std::vector<std::string> exports = inf.symbols();
+
+  std::vector<std::string> testfunctions;
+  std::set<std::string> testfunctionsAttributes;
+  for (auto sym : exports) {
+    if (sym.find("__GetTestMethodInfo_") != std::string::npos)
+    {
+      std::string demangled = boost::core::demangle(sym.c_str());
+      if (endsWith(demangled, "()")) {
+        testfunctions.push_back(demangled.substr(0, demangled.length()-2));
+      }
+    }
+    else if (sym.find("__GetMethodAttributeInfo_") != std::string::npos)
+    {
+      std::string demangled = boost::core::demangle(sym.c_str());
+      if (endsWith(demangled, "()")) {
+        testfunctionsAttributes.insert(demangled.substr(0, demangled.length()-2));
+      }
+    }
+  }
+
+  std::sort(testfunctions.begin(), testfunctions.end());
+
+  if (!filter.empty()) {
+    std::cout << "Applying filter " << filter << std::endl;
+    testfunctions.erase(
+      std::remove_if(testfunctions.begin(),
+                     testfunctions.end(),
+                     [&filter](const std::string& elem) -> bool {
+                        return elem.find(filter) == std::string::npos;
+                      }),
+    testfunctions.end());
+  }
+
+  std::vector<std::pair<std::string, AssertX::AssertFailed>> failedTests;
+  std::vector<Test> allTests;
+  LocalCounter olocalCounters;
+
+  using namespace boost::dll::experimental;
+  if (testfunctions.size() > 0) {
+    boost::dll::shared_library lib;
+    try {
+      lib.load(testSo);
+    } catch (const std::exception& ex) {
+      std::cerr << current_error_color << "Exception loading lib at " << ex.what() << current_reset_color << std::endl;
+      return -1;
+    }
+
+    testeeDlHandle = dlopen(testSo.c_str(), RTLD_LAZY);
+    if (!testeeDlHandle) {
+        std::cerr << current_error_color << "dlopen failed: " << dlerror() << current_reset_color << std::endl;
+        return -1;
+    }
+    dlerror();
+
+
+    std::string moduleExtraData = TryRunCFunctionWithLiteralRet("_Test_Extra_Module_Info", "module extra info");
+    if (verbose && !moduleExtraData.empty())
+        std::cout << "Extra data for " << testSo << std::endl << moduleExtraData << std::endl;
+    if (onload_callback)
+        onload_callback(onload_callback_context, testSo.c_str(), moduleExtraData.c_str());
+
+    TryRunCFunction("_Test_Init_Module", "module init");
+
+    for (auto sym : testfunctions) {
+        ProcessMethod(sym, testfunctionsAttributes, allTests, failedTests, olocalCounters);
+    }
+
+    TryRunCFunction("_Test_Cleanup_Module", "module cleanup");
+
+    if (onunload_callback)
+        onunload_callback(onunload_callback_context, testSo.c_str());
+
+    if (failedTests.size() > 0)
+    {
+      std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+      std::cout << current_error_color << failedTests.size() << " of " << olocalCounters.totalTests << " Tests failed.\n";
+      std::cout << "Summary:" << current_reset_color << std::endl;
+      std::cerr << current_error_color;
+      for(const auto& ft : failedTests)
+      {
+        std::wcerr << converter.from_bytes(ft.first) << ": " << converter.from_bytes(ft.second.what()) << std::endl;
+      }
+      std::cerr << current_reset_color;
+      std::cerr << std::endl;
+    }
+    else
+    {
+      std::cout << testSo << current_success_color << ": All tests passed." << current_reset_color;
+      if (olocalCounters.ignoredOnLinux > 0)
+      {
+        std::cout << current_warning_color << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << current_reset_color;
+      }
+      if (olocalCounters.ignored > 0)
+      {
+        std::cout << current_warning_color << " " << olocalCounters.ignored << " ignored total; " << current_reset_color;
+      }
+      std::cout << std::endl;
+    }
+
+    testCompletion = Now();
+
+    TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
+  }
+  else
+  {
+    std::cerr << current_warning_color << "No tests found in " << testSo << current_reset_color << std::endl;
+
+    TrxOutput::OutputToFile(testTrx, testSo, testEntry, testCompletion, allTests);
+    return filter.empty() ? -1 : 0;
+  }
+
+  return 0;
+}
+
+static const std::string needle = "__GetTestMethodInfo_";
+static const std::string attributeInfo = "__GetMethodAttributeInfo_";
+void ProcessMethod( const std::string &rMethodInfoName
+                  , const std::set<std::string>& testfunctionsAttributes
+                  , std::vector<Test>& rAllTests
+                  , std::vector<std::pair<std::string, AssertX::AssertFailed>>& rFailedTests
+                  , LocalCounter& rLocalCounters
+                  )
+{
+    std::string testname = rMethodInfoName;
+    testname.replace(testname.find(needle), needle.length(), "");
+    std::string fncGetAttribInfo= rMethodInfoName;
+    fncGetAttribInfo.replace(fncGetAttribInfo.find(needle), needle.length(), attributeInfo);
+
+    rAllTests.push_back(Test());
+    Test& rCurrentTest = rAllTests.back();
+    rCurrentTest.functionName = testname;
+    rCurrentTest.testId = Guid::New();
+    rCurrentTest.executionId = Guid::New();
+
+    using namespace boost::dll::experimental;
+
+    MyTest::MethodAttributeInfo info;
+    try
+    {
+        if (testfunctionsAttributes.find(fncGetAttribInfo) != testfunctionsAttributes.end())
+        {
+            auto fnc = import_mangled<MyTest::MethodAttributeInfo()>(testSo, fncGetAttribInfo);
+            info = fnc();
+        }
+    }
+    catch(std::exception &e)
+    {
+        std::cerr << current_error_color << "Exception at " << e.what() << " for " << fncGetAttribInfo << current_reset_color << std::endl;
+        rCurrentTest.error = true;
+        return;
+    }
+
+    if (info.ignoreOnLinux)
+        ++rLocalCounters.ignoredOnLinux;
+
+    if (!info.ignore && !info.ignoreOnLinux)
+    {
+        std::cout << current_success_color << "Calling Test " << current_reset_color << testname << "\n";
+        try
+        {
+            // Get Function to fetch entry points
+            auto fnc = import_mangled<MyTest::MemberMethodInfo*()>(testSo, rMethodInfoName);
+            auto* mInfo = fnc();
+
+            // Run actual test
+            MyTest::TestClassImpl* classUnderTest = mInfo->pCreateMethod();
+            classUnderTest->InitClass();
+            classUnderTest->InitMethod();
+
+            try
+            {
+                // Call the test
+                rCurrentTest.executed = true;
+                rCurrentTest.entryTime = Now();
+                (classUnderTest->*mInfo->pVoidMethod)();
+            }
+            catch(const AssertX::AssertFailed& ex)
+            {
+                rFailedTests.push_back(std::make_pair(testname, ex));
+                rCurrentTest.pFailure = std::make_shared<AssertX::AssertFailed>(ex);
+                std::cerr << current_error_color << "Failure " << ex.what() << current_reset_color << std::endl;
+            }
+            catch(...)
+            {
+                std::cerr << current_error_color << "Unexpected exception" << current_reset_color << std::endl;
+                auto ex = AssertX::AssertFailed("Unexpected exception");
+                rFailedTests.push_back(std::make_pair(testname, ex ));
+                rCurrentTest.pFailure= std::make_shared<AssertX::AssertFailed>(ex);
+            }
+            rCurrentTest.endTime= Now();
+
+            classUnderTest->DeInitMethod();
+            classUnderTest->DeInitClass();
+            mInfo->pDestroyMethod(classUnderTest);
+            ++rLocalCounters.totalTests;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << current_error_color << "Exception at " << ex.what() << current_reset_color << std::endl;
+            rCurrentTest.error = true;
+        }
+    }
+    else
+    {
+        std::cout << current_warning_color << "Ignoring Test " << testname << current_reset_color << "\n";
+        rLocalCounters.ignored++;
+        rCurrentTest.ignored = true;
+    }
+}
+
+// --------------------------------------------------------------------------
+//starting 1 pass the exec name
+int parseArgs(int argc, char* argv[])
+{
+    if (argc %2 != 0)
+    {
+        std::cerr << "Invalid number of arguments" << std::endl;
+        return -1;
+    }
+
+    for (int i = 0; i < argc; i += 2)
+    {
+        if (strcmp(argv[i], "--so") == 0)
+        {
+            testSo = argv[i + 1];
+        }
+        else if (strcmp(argv[i], "--filter") == 0)
+        {
+            testFilter = argv[i + 1];
+        }
+        else if (strcmp(argv[i], "--trx") == 0)
+        {
+            testTrx = argv[i + 1];
+        }
+        else if (strcmp(argv[i], "--color") == 0)
+        {
+            const auto *pValue = argv[i + 1];
+            bool colorBool = pValue[0] == 'y' || pValue[0] == 'Y' || pValue[0] == 't' || pValue[0] == 'T';
+            current_reset_color = colorBool ? RESET_COLOR  : "";
+            current_error_color = colorBool ? RED_COLOR    : "";
+            current_success_color = colorBool ? GREEN_COLOR  : "";
+            current_warning_color = colorBool ? YELLOW_COLOR : "";
+        }
+        else if (strcmp(argv[i], "--verbose") == 0)
+        {
+            const auto *pValue = argv[i + 1];
+            verbose = pValue[0] == 'y' || pValue[0] == 'Y' || pValue[0] == 't' || pValue[0] == 'T';
+        }
+        else
+        {
+            std::cerr << "Unknown argument: " << argv[i] << std::endl;
+            return -1;
+        }
+    }
+    if (testSo.empty())
+    {
+        std::cerr << "No --so argument provided" << std::endl;
+        return -1;
+    }
+
+    if (testFilter.empty())
+        if (verbose) std::cout  << "No filter provided" << std::endl;
+    else
+        if (verbose) std::cout  << "Filter is : " << testFilter << std::endl;
+
+    if (testTrx.empty())
+        if (verbose) std::cout  << "No trx sink" << std::endl;
+    else
+        if (verbose) std::cout  << "Trx sink is : " << testTrx << std::endl;
+
+    return 0;
+}
+
+// --------------------------------------------------------------------------
+void TryRunCFunction(const std::string& functionName, const std::string& prettyName)
+{
+    // C functions are not mangled, so use the name directly
+    typedef void (*CFunc)();
+    CFunc fnc = reinterpret_cast<CFunc>(dlsym(testeeDlHandle, functionName.c_str()));
+    if (!fnc)
+    {
+        if (verbose) std::cout << "No " << prettyName << " found" << std::endl;
+        return;
+    }
+
+    try {
+        fnc();
+    } catch (const std::exception& ex) {
+        std::cerr << current_error_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
+    } catch (...) {
+        std::cerr << current_error_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
+    }
+}
+
+// --------------------------------------------------------------------------
+std::string TryRunCFunctionWithLiteralRet(const std::string& functionName, const std::string& prettyName)
+{
+    // C functions are not mangled, so use the name directly
+    typedef const char* (*CFunc)();
+    CFunc fnc = reinterpret_cast<CFunc>(dlsym(testeeDlHandle, functionName.c_str()));
+    if (!fnc)
+    {
+        if (verbose) std::cout << "No " << prettyName << " found" << std::endl;
+        return std::string();
+    }
+
+    try {
+        return fnc();
+    } catch (const std::exception& ex) {
+        std::cerr << current_error_color << "Exception at " << ex.what() << " for " << functionName << current_reset_color << std::endl;
+    } catch (...) {
+        std::cerr << current_error_color << "Unknown exception for " << functionName << current_reset_color << std::endl;
+    }
+    return std::string("FAILURE TO LOAD");
+}
+
+// --------------------------------------------------------------------------
+EXPORTC void cutf_register_onload_callback(void *pContext, OnLoadedTestSo pfCallback)
+{
+    onload_callback_context = pContext;
+    onload_callback = pfCallback;
+}
+
+// --------------------------------------------------------------------------
+EXPORTC void cutf_register_onunload_callback(void *pContext, OnUnloadedTestSo pfCallback)
+{
+    onunload_callback_context = pContext;
+    onunload_callback = pfCallback;
+}

@@ -27,10 +27,16 @@
 // Additional work by Julien Vary for Genetec, Inc.
 //------------------------------------------------------------------------
 
-#include "../testhostlib/testhost.h"
-
 // --------------------------------------------------------------------------
-int main(int argc, char* argv[])
+#define EXPORT __attribute__((visibility("default")))
+#define EXPORTC extern "C" EXPORT
+
+extern "C"
 {
-    return cutf_testhostmain(argc, argv);
+    typedef void (*OnLoadedTestSo)(void *pContext, const char* soName, const char* extraData);
+    typedef void (*OnUnloadedTestSo)(void *pContext, const char* soName);
 }
+
+EXPORTC int cutf_testhostmain(int argc, char* argv[]);
+EXPORTC void cutf_register_onload_callback(void *pContext, OnLoadedTestSo pfCallback);
+EXPORTC void cutf_register_onunload_callback(void *pContext, OnUnloadedTestSo pfCallback );
