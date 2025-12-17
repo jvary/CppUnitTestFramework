@@ -27,7 +27,7 @@
 // Additional work by Julien Vary for Genetec, Inc.
 //------------------------------------------------------------------------
 
-#include "../testhostlib/testhost.h"
+#include "testhost.h"
 
 // --------------------------------------------------------------------------
 int main(int argc, char* argv[])
