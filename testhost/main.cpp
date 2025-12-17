@@ -32,5 +32,5 @@
 // --------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    return cutf_testshostmain(argc, argv);
+    return cutf_testhostmain(argc, argv);
 }

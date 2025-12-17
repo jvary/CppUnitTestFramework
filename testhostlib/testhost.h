@@ -37,6 +37,6 @@ extern "C"
     typedef void (*OnUnloadedTestSo)(void *pContext, const char* soName);
 }
 
-EXPORTC int cutf_testshostmain(int argc, char* argv[]);
+EXPORTC int cutf_testhostmain(int argc, char* argv[]);
 EXPORTC void cutf_register_onload_callback(void *pContext, OnLoadedTestSo pfCallback);
 EXPORTC void cutf_register_onunload_callback(void *pContext, OnUnloadedTestSo pfCallback );

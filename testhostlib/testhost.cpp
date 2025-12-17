@@ -58,7 +58,7 @@ struct LocalCounter
   int ignored = 0;
 };
 
-static  void* testeeDlHandle = nullptr;
+static void* testeeDlHandle = nullptr;
 
 // --------------------------------------------------------------------------
 //   forwards
@@ -72,7 +72,7 @@ void ProcessMethod( const std::string &rMethodInfoName
                   , LocalCounter& rLocalCounters
                   );
 void TryRunCFunction(const std::string& functionName, const std::string& prettyName);
-std::string TryRunCFunctionWithLitteralRet(const std::string& functionName, const std::string& prettyName);
+std::string TryRunCFunctionWithLiteralRet(const std::string& functionName, const std::string& prettyName);
 
 static void* onload_callback_context = nullptr;
 static void* onunload_callback_context = nullptr;
@@ -105,7 +105,7 @@ static const char* current_warning_color = YELLOW_COLOR;
 static bool verbose = false;
 
 // --------------------------------------------------------------------------
-int cutf_testshostmain(int argc, char* argv[])
+int cutf_testhostmain(int argc, char* argv[])
 {
   if (argc < 2) {
     std::cerr << current_error_color << "Fill arguments" << current_reset_color << std::endl;
@@ -192,7 +192,7 @@ int cutf_testshostmain(int argc, char* argv[])
     dlerror();
 
 
-    std::string moduleExtraData = TryRunCFunctionWithLitteralRet("_Test_Extra_Module_Info", "module extra info");
+    std::string moduleExtraData = TryRunCFunctionWithLiteralRet("_Test_Extra_Module_Info", "module extra info");
     if (verbose && !moduleExtraData.empty())
         std::cout << "Extra data for " << testSo << std::endl << moduleExtraData << std::endl;
     if (onload_callback)
@@ -432,7 +432,7 @@ void TryRunCFunction(const std::string& functionName, const std::string& prettyN
 }
 
 // --------------------------------------------------------------------------
-std::string TryRunCFunctionWithLitteralRet(const std::string& functionName, const std::string& prettyName)
+std::string TryRunCFunctionWithLiteralRet(const std::string& functionName, const std::string& prettyName)
 {
     // C functions are not mangled, so use the name directly
     typedef const char* (*CFunc)();
