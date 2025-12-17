@@ -220,6 +220,7 @@ int cutf_testshostmain(int argc, char* argv[])
         std::wcerr << converter.from_bytes(ft.first) << ": " << converter.from_bytes(ft.second.what()) << std::endl;
       }
       std::cerr << current_reset_color;
+      std::cerr << std::endl;
     }
     else
     {
@@ -232,6 +233,7 @@ int cutf_testshostmain(int argc, char* argv[])
       {
         std::cout << current_yellow_color << " " << olocalCounters.ignored << " ignored total; " << current_reset_color;
       }
+      std::cout << std::endl;
     }
 
     testCompletion = Now();
@@ -432,7 +434,7 @@ void TryRunCFunction(const std::string& functionName, const std::string& prettyN
 std::string TryRunCFunctionWithLitteralRet(const std::string& functionName, const std::string& prettyName)
 {
     // C functions are not mangled, so use the name directly
-    typedef char* (*CFunc)();
+    typedef const char* (*CFunc)();
     CFunc fnc = reinterpret_cast<CFunc>(dlsym(testeeDlHandle, functionName.c_str()));
     if (!fnc)
     {
