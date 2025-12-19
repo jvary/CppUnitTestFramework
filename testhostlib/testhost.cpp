@@ -224,7 +224,7 @@ int cutf_testhostmain(int argc, char* argv[])
     }
     else
     {
-      std::cout << testSo << current_success_color << ": All tests passed." << current_reset_color;
+      std::cout << testSo << current_success_color << ": All " << allTests.size() << " tests passed." << current_reset_color;
       if (olocalCounters.ignoredOnLinux > 0)
       {
         std::cout << current_warning_color << " " << olocalCounters.ignoredOnLinux << " ignored for Linux; " << current_reset_color;
