@@ -48,6 +48,10 @@ static std::string testSo;
 static std::string testFilter;
 static std::string testTrx;
 
+// Attribute based exclusions: first is the attribute key, second the optional
+// value. An empty value means 'exclude as soon as the key is present'.
+static std::vector<std::pair<std::wstring, std::wstring>> testFilterOut;
+
 static SomeTime testEntry = Now();
 static SomeTime testCompletion;
 
@@ -56,6 +60,7 @@ struct LocalCounter
   int totalTests = 0;
   int ignoredOnLinux = 0;
   int ignored = 0;
+  int filteredOut = 0;
 };
 
 static void* testeeDlHandle = nullptr;
@@ -89,6 +94,48 @@ inline bool endsWith(const std::string& value, const std::string& ending)
 // --------------------------------------------------------------------------
 inline bool containsString(const std::vector<std::string>& vec, const std::string& value) {
     return std::find(vec.begin(), vec.end(), value) != vec.end();
+}
+
+// --------------------------------------------------------------------------
+// Parses 'key1;key2;key3=abc;' into the attribute exclusion list.
+void parseFilterOut(const std::string& rSpec)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+
+    size_t pos = 0;
+    while (pos <= rSpec.length())
+    {
+        const size_t sep = rSpec.find(';', pos);
+        const std::string token = rSpec.substr(pos, sep == std::string::npos ? std::string::npos : sep - pos);
+        if (!token.empty())
+        {
+            const size_t eq = token.find('=');
+            if (eq == std::string::npos)
+                testFilterOut.emplace_back(converter.from_bytes(token), std::wstring());
+            else
+                testFilterOut.emplace_back(converter.from_bytes(token.substr(0, eq)), converter.from_bytes(token.substr(eq + 1)));
+        }
+        if (sep == std::string::npos) break;
+        pos = sep + 1;
+    }
+}
+
+// --------------------------------------------------------------------------
+// Returns the matching exclusion ('key' or 'key=value') or an empty string.
+std::string filteredOutBy(const MyTest::MethodAttributeInfo& rInfo)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+
+    for (const auto& [key, value] : testFilterOut)
+    {
+        const auto it = rInfo.key2Val.find(key);
+        if (it == rInfo.key2Val.end()) continue;
+        if (!value.empty() && it->second != value) continue;
+
+        return value.empty() ? converter.to_bytes(key)
+                             : converter.to_bytes(key + L"=" + value);
+    }
+    return std::string();
 }
 
 // --------------------------------------------------------------------------
@@ -233,6 +280,10 @@ int cutf_testhostmain(int argc, char* argv[])
       {
         std::cout << current_warning_color << " " << olocalCounters.ignored << " ignored total; " << current_reset_color;
       }
+      if (olocalCounters.filteredOut > 0)
+      {
+        std::cout << current_warning_color << " " << olocalCounters.filteredOut << " filtered out on attributes; " << current_reset_color;
+      }
       std::cout << std::endl;
     }
 
@@ -265,15 +316,10 @@ void ProcessMethod( const std::string &rMethodInfoName
     std::string fncGetAttribInfo= rMethodInfoName;
     fncGetAttribInfo.replace(fncGetAttribInfo.find(needle), needle.length(), attributeInfo);
 
-    rAllTests.push_back(Test());
-    Test& rCurrentTest = rAllTests.back();
-    rCurrentTest.functionName = testname;
-    rCurrentTest.testId = Guid::New();
-    rCurrentTest.executionId = Guid::New();
-
     using namespace boost::dll::experimental;
 
     MyTest::MethodAttributeInfo info;
+    bool attributeInfoFailed = false;
     try
     {
         if (testfunctionsAttributes.find(fncGetAttribInfo) != testfunctionsAttributes.end())
@@ -285,6 +331,29 @@ void ProcessMethod( const std::string &rMethodInfoName
     catch(std::exception &e)
     {
         std::cerr << current_error_color << "Exception at " << e.what() << " for " << fncGetAttribInfo << current_reset_color << std::endl;
+        attributeInfoFailed = true;
+    }
+
+    if (!attributeInfoFailed)
+    {
+        const std::string filteredOutBySpec = filteredOutBy(info);
+        if (!filteredOutBySpec.empty())
+        {
+            if (verbose)
+                std::cout << current_warning_color << "Filtering out test " << testname << " on " << filteredOutBySpec << current_reset_color << "\n";
+            ++rLocalCounters.filteredOut;
+            return;
+        }
+    }
+
+    rAllTests.push_back(Test());
+    Test& rCurrentTest = rAllTests.back();
+    rCurrentTest.functionName = testname;
+    rCurrentTest.testId = Guid::New();
+    rCurrentTest.executionId = Guid::New();
+
+    if (attributeInfoFailed)
+    {
         rCurrentTest.error = true;
         return;
     }
@@ -367,6 +436,10 @@ int parseArgs(int argc, char* argv[])
         {
             testFilter = argv[i + 1];
         }
+        else if (strcmp(argv[i], "--filterout") == 0)
+        {
+            parseFilterOut(argv[i + 1]);
+        }
         else if (strcmp(argv[i], "--trx") == 0)
         {
             testTrx = argv[i + 1];
@@ -401,6 +474,18 @@ int parseArgs(int argc, char* argv[])
         if (verbose) std::cout  << "No filter provided" << std::endl;
     else
         if (verbose) std::cout  << "Filter is : " << testFilter << std::endl;
+
+    if (verbose && !testFilterOut.empty())
+    {
+        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+        std::cout << "Filtering out tests with attribute:";
+        for (const auto& [key, value] : testFilterOut)
+        {
+            std::cout << " " << converter.to_bytes(key);
+            if (!value.empty()) std::cout << "=" << converter.to_bytes(value);
+        }
+        std::cout << std::endl;
+    }
 
     if (testTrx.empty())
         if (verbose) std::cout  << "No trx sink" << std::endl;

@@ -16,7 +16,12 @@ Prerequesites:
 
 The test runner is called *testhost*.
 You needs to call it like this:
-`testhost --so <path-to-shared-lib> [--filter <optional-test-filter>] [--trx <optional-path-to-outputTrx>]` 
+`testhost --so <path-to-shared-lib> [--filter <optional-test-filter>] [--filterout <optional-attribute-exclusions>] [--trx <optional-path-to-outputTrx>]`
+
+`--filterout` excludes tests based on their `TEST_METHOD_ATTRIBUTE` entries. It takes a `;` separated
+list where each entry is either an attribute key (excludes every test carrying that key, whatever its
+value) or a `key=value` pair (excludes only the tests where that key has exactly this value):
+`testhost --so libmytests.so --filterout "LongRunning;IPv6;Priority=Low;"`
 
 Why the fork from CppUnitTestFrameworkWrapper?
    * Test macros were conflicting with members functions of testee classes (so we switched back to templates as the MS implementation)
