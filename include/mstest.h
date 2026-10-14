@@ -164,21 +164,21 @@ namespace AssertX
   };
 
   template<typename TChar>
-  TChar CppUnitLower(TChar c) {return towlower(c);}  
+  TChar CppUnitLower(TChar c) {return towlower(c);}
   template<>
   inline char CppUnitLower<char>(char c) {return tolower(c);}
   template<>
   inline wchar_t CppUnitLower<wchar_t>(wchar_t c) {return towlower(c);}
-  
+
   template<typename TChar>
   bool CppUnitStrCmp(const TChar* str1, const TChar* str2, bool ignoreCase)
   {
     if (!str1 && !str2)
-      return true;    
+      return true;
     if (!str1 && str2)
       return false;
     if (str1 && !str2)
-      return false;      
+      return false;
 
     while (*str1 && *str2)
     {
@@ -228,7 +228,7 @@ namespace AssertX
     }
 
     std::wstring message = ss.str();
-    return message;    
+    return message;
   }
 
 #define RETURN_WIDE_STRING(inputValue)  std::wstringstream _cppts;	_cppts << inputValue; return _cppts.str()
@@ -244,7 +244,7 @@ static inline void FailOnCondition(bool condition, const std::wstring message, c
     const std::string oMsg = AssertX::WideToUtf8(message.c_str());
 
     std::stringstream ss;
-    ss 
+    ss
       << oMsg
       << " at "
       << location.file_name()
@@ -264,210 +264,211 @@ static inline void FailOnCondition(bool condition, const wchar_t* message, const
 
 namespace Microsoft::VisualStudio::CppUnitTestFramework
 {
-    template<typename T> std::wstring ToString(const T* t){ RETURN_WIDE_STRING(t); }
-    template<typename T> std::wstring ToString(T* t){ RETURN_WIDE_STRING(t); }
-    template<typename T> std::wstring ToString(const T& rT){ RETURN_WIDE_STRING(rT); }    
-    template<> inline std::wstring ToString<const char>(const char* t){ if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
+  template<typename T> std::wstring ToString(const T* t){ RETURN_WIDE_STRING(t); }
+  template<typename T> std::wstring ToString(T* t){ RETURN_WIDE_STRING(t); }
+  template<typename T> std::wstring ToString(const T& rT){ RETURN_WIDE_STRING(rT); }
+  template<> inline std::wstring ToString<const char>(const char* t){ if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
 	template<> inline std::wstring ToString<const wchar_t>(const wchar_t* t) { if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
 	template<> inline std::wstring ToString<char>(char* t){ if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
-	template<> inline std::wstring ToString<wchar_t>(wchar_t* t) { if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }  
-	template<> inline std::wstring ToString<std::string>(const std::string &t) { return ToString(t.c_str()); }    
-}
-namespace MsCppTest = Microsoft::VisualStudio::CppUnitTestFramework;
+	template<> inline std::wstring ToString<wchar_t>(wchar_t* t) { if (nullptr == t) return std::wstring(L"(NULL)"); RETURN_WIDE_STRING(t); }
+	template<> inline std::wstring ToString<std::string>(const std::string &t) { return ToString(t.c_str()); }
 
-class Assert
-{
-#define DEFAULT_IGNORECASE false
-#define EQUALS_MESSAGE(expected, actual, message)           AssertX::GetAssertMessage(true, MsCppTest::ToString(expected), MsCppTest::ToString(actual), message)
-#define NOT_EQUALS_MESSAGE(notExpected, actual, message)    AssertX::GetAssertMessage(false, MsCppTest::ToString(notExpected), MsCppTest::ToString(actual), message)
+  class Assert
+  {
+  #define DEFAULT_IGNORECASE false
+  #define EQUALS_MESSAGE(expected, actual, message)           AssertX::GetAssertMessage(true, ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(expected), ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(actual), message)
+  #define NOT_EQUALS_MESSAGE(notExpected, actual, message)    AssertX::GetAssertMessage(false, ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(notExpected), ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(actual), message)
 
-public:
+  public:
     template<typename T> static void AreEqual(const T& expected, const T& actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+      FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
     }
 
     static void AreEqual(int expected, long actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+      FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
     }
 
     static void AreEqual(long expected, int actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
-    }        
+      FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+    }
 
     static void AreEqual(unsigned int expected, unsigned long actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+      FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
     }
 
     static void AreEqual(unsigned long expected, unsigned int actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
-    }        
+      FailOnCondition(expected == actual, EQUALS_MESSAGE(expected, actual, message), location);
+    }
 
     static void AreEqual(double expected, double actual, double tolerance, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        double diff = expected - actual;
-        FailOnCondition(fabs(diff) <= fabs(tolerance), EQUALS_MESSAGE(expected, actual, message), location);
+      double diff = expected - actual;
+      FailOnCondition(fabs(diff) <= fabs(tolerance), EQUALS_MESSAGE(expected, actual, message), location);
     }
-    
+
     static void AreEqual(float expected, float actual, float tolerance, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        float diff = expected - actual;
-        FailOnCondition(fabs(diff) <= fabs(tolerance), EQUALS_MESSAGE(expected, actual, message), location);
+      float diff = expected - actual;
+      FailOnCondition(fabs(diff) <= fabs(tolerance), EQUALS_MESSAGE(expected, actual, message), location);
     }
-            
+
     static void AreEqual(const char* expected, const char* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreEqual(expected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
+      AreEqual(expected, actual, DEFAULT_IGNORECASE, ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(message).c_str(), location);
     }
-    
+
     static void AreEqual(const char* expected, const char* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
     {
-        AreEqual(expected, actual, DEFAULT_IGNORECASE, message, location);
+      AreEqual(expected, actual, DEFAULT_IGNORECASE, message, location);
     }
-    
+
     static void AreEqual(const char* expected, const char* actual, bool ignoreCase = false, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(CppUnitStrCmpA(expected, actual, ignoreCase), EQUALS_MESSAGE(expected, actual, message), location);
-    }		
-            
+      FailOnCondition(CppUnitStrCmpA(expected, actual, ignoreCase), EQUALS_MESSAGE(expected, actual, message), location);
+    }
+
     static void AreEqual(const wchar_t* expected, const wchar_t* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreEqual(expected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
+      AreEqual(expected, actual, DEFAULT_IGNORECASE, ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(message).c_str(), location);
     }
-    
+
     static void AreEqual(const wchar_t* expected, const wchar_t* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
     {
-        AreEqual(expected, actual, DEFAULT_IGNORECASE, message, location);
+      AreEqual(expected, actual, DEFAULT_IGNORECASE, message, location);
     }
-    
+
     static void AreEqual(const wchar_t* expected, const wchar_t* actual, bool ignoreCase = false, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(CppUnitStrCmpW(expected, actual, ignoreCase), EQUALS_MESSAGE(expected, actual, message), location);
+      FailOnCondition(CppUnitStrCmpW(expected, actual, ignoreCase), EQUALS_MESSAGE(expected, actual, message), location);
     }
-    
+
     template<typename T> static void AreSame(const T& expected, const T& actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(&expected == &actual, EQUALS_MESSAGE(expected, actual, message), location);
+      FailOnCondition(&expected == &actual, EQUALS_MESSAGE(expected, actual, message), location);
     }
-    
+
     template<typename T> static void AreNotEqual(const T& notExpected, const T& actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(!(notExpected == actual), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
+      FailOnCondition(!(notExpected == actual), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
     }
-    
+
     static void AreNotEqual(double notExpected, double actual, double tolerance, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        double diff = notExpected - actual;
-        FailOnCondition(fabs(diff) > fabs(tolerance), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
+      double diff = notExpected - actual;
+      FailOnCondition(fabs(diff) > fabs(tolerance), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
     }
-    
+
     static void AreNotEqual(float notExpected, float actual, float tolerance, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        float diff = notExpected - actual;
-        FailOnCondition(fabs(diff) > fabs(tolerance), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
+      float diff = notExpected - actual;
+      FailOnCondition(fabs(diff) > fabs(tolerance), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
     }
-    
+
     static void AreNotEqual(const char* notExpected, const char* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
+      AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(message).c_str(), location);
     }
-    
+
     static void AreNotEqual(const char* notExpected, const char* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
     {
-        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, message, location);
+      AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, message, location);
     }
-    
+
     static void AreNotEqual(const char* notExpected, const char* actual, bool ignoreCase = false, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(!CppUnitStrCmpA(notExpected, actual, ignoreCase), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
+      FailOnCondition(!CppUnitStrCmpA(notExpected, actual, ignoreCase), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
     }
 
     static void AreNotEqual(const wchar_t* notExpected, const wchar_t* actual, const char* message, const std::source_location location = std::source_location::current())
     {
-        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, MsCppTest::ToString(message).c_str(), location);
+      AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, ::Microsoft::VisualStudio::CppUnitTestFramework::ToString(message).c_str(), location);
     }
-    
+
     static void AreNotEqual(const wchar_t* notExpected, const wchar_t* actual, const wchar_t* message, const std::source_location location = std::source_location::current())
     {
-        AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, message, location);
-    }		
+      AreNotEqual(notExpected, actual, DEFAULT_IGNORECASE, message, location);
+    }
 
     static void AreNotEqual(const wchar_t* notExpected, const wchar_t* actual, bool ignoreCase = false, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(!CppUnitStrCmpW(notExpected, actual, ignoreCase), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
+      FailOnCondition(!CppUnitStrCmpW(notExpected, actual, ignoreCase), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
     }
 
     template<typename T> static void AreNotSame(const T& notExpected, const T& actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(!(&notExpected == &actual), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
+      FailOnCondition(!(&notExpected == &actual), NOT_EQUALS_MESSAGE(notExpected, actual, message), location);
     }
-    
+
     template<typename T> static void IsNull(const T* actual,const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(actual == nullptr, message, location);
+      FailOnCondition(actual == nullptr, message, location);
     }
 
     template<typename T> static void IsNotNull(const T* actual, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(actual != nullptr, message, location);
+      FailOnCondition(actual != nullptr, message, location);
     }
-    
+
     static void IsTrue(bool condition, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(condition, message, location);
+      FailOnCondition(condition, message, location);
     }
 
     static void IsFalse(bool condition, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(!condition, message, location);
-    }		
+      FailOnCondition(!condition, message, location);
+    }
 
     static void Fail(const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(false, message, location);
+      FailOnCondition(false, message, location);
     }
 
     template<typename TExpectedExp, typename TFunct> static void ExpectException(TFunct functor, const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
-    {            
-        try
-        {
-            functor();
-        }
-        catch(TExpectedExp)
-        {
-            return;
-        }
-        catch(...)
-        {
-            throw;
-        }
+    {
+      try
+      {
+        functor();
+      }
+      catch(TExpectedExp)
+      {
+        return;
+      }
+      catch(...)
+      {
+        throw;
+      }
 
-        Assert::Fail(message, location);
+      Assert::Fail(message, location);
     }
 
     template<typename TExpectedExp, typename TReturnType> static void ExpectException(TReturnType (*func)(), const wchar_t* message = NULL, const std::source_location location = std::source_location::current())
     {
-        FailOnCondition(func != nullptr, message, location);
-        try
-        {
-            func();
-        }
-        catch(TExpectedExp)
-        {
-            return;
-        }
-        catch(...)
-        {
-            throw;
-        }
+      FailOnCondition(func != nullptr, message, location);
+      try
+      {
+        func();
+      }
+      catch(TExpectedExp)
+      {
+        return;
+      }
+      catch(...)
+      {
+        throw;
+      }
 
-        Assert::Fail(message, location);
-    }    
-};
+      Assert::Fail(message, location);
+    }
+  };
+
+}
+namespace MsCppTest = Microsoft::VisualStudio::CppUnitTestFramework;
 
 #define TEST_OWNER(ownerAlias) TEST_METHOD_ATTRIBUTE(L"Owner", ownerAlias)
 #define TEST_DESCRIPTION(description) TEST_METHOD_ATTRIBUTE(L"Description", description)
