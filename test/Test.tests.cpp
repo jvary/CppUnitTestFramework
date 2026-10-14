@@ -18,6 +18,8 @@ namespace Microsoft {
   }
 }
 
+using namespace Microsoft::VisualStudio::CppUnitTestFramework;
+
 TEST_CLASS(INDateTests)
 {
   std::string stringInitOnInitClass;
